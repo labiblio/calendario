@@ -4,12 +4,15 @@ class CalendarApp {
         this.selectedDate = null;
         this.events = this.loadEvents();
         this.editingEvent = null;
+        this.includeCanaryHolidays = true; // include Canary Islands holidays
+        this.holidays = {}; // populated per year
         
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.holidays = this.buildHolidays(this.currentDate.getFullYear());
         this.renderCalendar();
         this.updateCurrentMonthDisplay();
     }
@@ -50,6 +53,11 @@ class CalendarApp {
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
+
+        // Refresh holidays if year changed
+        if (!this.holidays || this.holidays.__year !== year) {
+            this.holidays = this.buildHolidays(year);
+        }
 
         // Get first day of month and number of days
         const firstDay = new Date(year, month, 1);
@@ -122,8 +130,8 @@ class CalendarApp {
             const dayEventsEl = document.createElement('div');
             dayEventsEl.className = 'day-events';
 
-            // Add events for this day
-            const dayEvents = this.events[dateKey] || [];
+            // Add events (user + holidays) for this day
+            const dayEvents = this.getCombinedEventsForDate(dateKey);
             dayEvents.slice(0, 3).forEach(event => {
                 const eventDot = document.createElement('div');
                 eventDot.className = `event-dot ${event.type}`;
@@ -143,22 +151,22 @@ class CalendarApp {
             dayElement.appendChild(dayEventsEl);
 
             // Add click event
-            dayElement.addEventListener('click', () => {
-                this.selectDate(currentYear, adjustedMonth, dayNumber);
+            dayElement.addEventListener('click', (e) => {
+                this.selectDate(currentYear, adjustedMonth, dayNumber, e.currentTarget);
             });
 
             calendarDays.appendChild(dayElement);
         }
     }
 
-    selectDate(year, month, day) {
+    selectDate(year, month, day, clickedEl) {
         // Remove previous selection
         document.querySelectorAll('.calendar-day.selected').forEach(el => {
             el.classList.remove('selected');
         });
 
         // Add selection to clicked day
-        event.currentTarget.classList.add('selected');
+        if (clickedEl) clickedEl.classList.add('selected');
 
         this.selectedDate = new Date(year, month, day);
         this.updateSelectedDateDisplay();
@@ -201,34 +209,35 @@ class CalendarApp {
         }
 
         const dateKey = this.getDateKey(this.selectedDate);
-        const dayEvents = this.events[dateKey] || [];
+        const dayEvents = this.getCombinedEventsForDate(dateKey);
 
-        if (dayEvents.length === 0) {
-            eventsList.innerHTML = '<p class="no-events">No hay eventos para este día</p>';
-            return;
-        }
-
-        // Sort events by time
+        // Sort events by time (holidays first, then by time)
         dayEvents.sort((a, b) => {
+            const ah = a.readOnly ? 0 : 1;
+            const bh = b.readOnly ? 0 : 1;
+            if (ah !== bh) return ah - bh;
             if (!a.time && !b.time) return 0;
             if (!a.time) return 1;
             if (!b.time) return -1;
             return a.time.localeCompare(b.time);
         });
 
-        eventsList.innerHTML = dayEvents.map(event => `
-            <div class="event-item ${event.type}" data-event-id="${event.id}">
-                <div class="event-title">${event.title}</div>
+        eventsList.innerHTML = dayEvents.map(event => {
+            const isHoliday = !!event.readOnly;
+            return `
+            <div class="event-item ${event.type}${isHoliday ? ' holiday' : ''}" ${isHoliday ? '' : `data-event-id="${event.id}"`}>
+                <div class="event-title">${event.title}${isHoliday ? ' <span class="badge-holiday">Festivo</span>' : ''}</div>
                 ${event.time ? `<div class="event-time">${event.time}${event.duration ? ` (${event.duration} min)` : ''}</div>` : ''}
                 ${event.description ? `<div class="event-description">${event.description}</div>` : ''}
-                <span class="event-priority ${event.priority}">${this.getPriorityText(event.priority)}</span>
-            </div>
-        `).join('');
+                ${isHoliday ? '' : `<span class="event-priority ${event.priority}">${this.getPriorityText(event.priority)}</span>`}
+            </div>`;
+        }).join('');
 
-        // Add click events to edit events
+        // Add click events to edit events (ignore holidays)
         eventsList.querySelectorAll('.event-item').forEach(item => {
             item.addEventListener('click', () => {
                 const eventId = item.dataset.eventId;
+                if (!eventId) return;
                 this.editEvent(eventId);
             });
         });
@@ -251,12 +260,14 @@ class CalendarApp {
 
     nextMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+        this.holidays = this.buildHolidays(this.currentDate.getFullYear());
         this.renderCalendar();
         this.updateCurrentMonthDisplay();
     }
 
     goToToday() {
         this.currentDate = new Date();
+        this.holidays = this.buildHolidays(this.currentDate.getFullYear());
         this.renderCalendar();
         this.updateCurrentMonthDisplay();
     }
@@ -386,6 +397,12 @@ class CalendarApp {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
+    getCombinedEventsForDate(dateKey) {
+        const userEvents = this.events[dateKey] || [];
+        const holidayEvents = this.holidays[dateKey] || [];
+        return [...holidayEvents, ...userEvents];
+    }
+
     loadEvents() {
         try {
             const stored = localStorage.getItem('calendarEvents');
@@ -403,6 +420,43 @@ class CalendarApp {
             console.error('Error saving events:', error);
             alert('Error al guardar los eventos. Por favor, intenta de nuevo.');
         }
+    }
+
+    buildHolidays(year) {
+        // Spanish National Holidays + Canary Islands (2025)
+        // readOnly=true so they cannot be edited
+        const map = { __year: year };
+        const add = (dateStr, title) => {
+            if (!map[dateStr]) map[dateStr] = [];
+            map[dateStr].push({ id: `h-${dateStr}-${title}`.toLowerCase(), title, type: 'holiday', priority: 'medium', readOnly: true });
+        };
+
+        // Helper to format
+        const d = (m, d) => `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+        // Fixed-date National holidays
+        add(d(1,1), 'Año Nuevo');
+        add(d(1,6), 'Epifanía del Señor');
+        add(d(5,1), 'Día del Trabajador');
+        add(d(8,15), 'Asunción de la Virgen');
+        add(d(10,12), 'Fiesta Nacional de España');
+        add(d(11,1), 'Todos los Santos');
+        add(d(12,6), 'Día de la Constitución Española');
+        add(d(12,8), 'Inmaculada Concepción');
+        add(d(12,25), 'Navidad del Señor');
+
+        // Movable National (2025 approximate common dates)
+        // For accuracy, these can be computed or loaded from an official source later
+        add(d(4,18), 'Viernes Santo');
+
+        // Canary Islands specific
+        if (this.includeCanaryHolidays) {
+            add(d(5,30), 'Día de Canarias');
+            // Add island-wide Jueves Santo (commonly observed)
+            add(d(4,17), 'Jueves Santo (Canarias)');
+        }
+
+        return map;
     }
 }
 
