@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario de Actividades</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-calendar-alt"></i>
+                    Calendario de Actividades
+                </h1>
+                <div class="nav-controls">
+                    <button id="prevMonth" class="nav-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="currentMonth" class="current-month"></span>
+                    <button id="nextMonth" class="nav-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <button id="todayBtn" class="today-btn">Hoy</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="calendar-container">
+                <div class="calendar-grid">
+                    <div class="weekdays">
+                        <div class="weekday">Lun</div>
+                        <div class="weekday">Mar</div>
+                        <div class="weekday">Mié</div>
+                        <div class="weekday">Jue</div>
+                        <div class="weekday">Vie</div>
+                        <div class="weekday">Sáb</div>
+                        <div class="weekday">Dom</div>
+                    </div>
+                    <div id="calendarDays" class="calendar-days"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Eventos del Día</h3>
+                    <span id="selectedDate" class="selected-date"></span>
+                </div>
+                <div id="eventsList" class="events-list">
+                    <p class="no-events">Selecciona un día para ver eventos</p>
+                </div>
+                <button id="addEventBtn" class="add-event-btn" style="display: none;">
+                    <i class="fas fa-plus"></i>
+                    Agregar Evento
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para agregar/editar eventos -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Agregar Evento</h3>
+                <button id="closeModal" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="eventForm" class="event-form">
+                <div class="form-group">
+                    <label for="eventTitle">Título del Evento</label>
+                    <input type="text" id="eventTitle" required placeholder="Ej: Reunión con cliente">
+                </div>
+                
+                <div class="form-group">
+                    <label for="eventType">Tipo de Evento</label>
+                    <select id="eventType" required>
+                        <option value="">Seleccionar tipo</option>
+                        <option value="meeting">Reunión</option>
+                        <option value="appointment">Cita</option>
+                        <option value="event">Evento</option>
+                        <option value="plan">Plan Personal</option>
+                        <option value="interest">Interés/Hobby</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="eventTime">Hora</label>
+                        <input type="time" id="eventTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDuration">Duración (min)</label>
+                        <input type="number" id="eventDuration" placeholder="60" min="15" step="15">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventDescription">Descripción</label>
+                    <textarea id="eventDescription" rows="3" placeholder="Detalles adicionales..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventPriority">Prioridad</label>
+                    <select id="eventPriority">
+                        <option value="low">Baja</option>
+                        <option value="medium" selected>Media</option>
+                        <option value="high">Alta</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="cancel-btn">Cancelar</button>
+                    <button type="submit" class="save-btn">Guardar</button>
+                    <button type="button" id="deleteBtn" class="delete-btn" style="display: none;">
+                        <i class="fas fa-trash"></i>
+                        Eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
